@@ -1,212 +1,173 @@
 import pygame
 import time
-from enum import Enum
+import Stoper
 
-class rubiksCube:
-    rCubeRect1 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect2 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect3 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect4 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect5 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect6 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect7 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect8 = pygame.Rect(0, 0, 0, 0)
-    rCubeRect9 = pygame.Rect(0, 0, 0, 0)
+WHITE = (255, 255, 255)
+YELLOW = (255, 255, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+ORANGE = (255, 130, 0)
+BACKGROUND_COLOUR = (80, 80, 120)
 
-    def rCubeDrawing(self):
-        pygame.draw.rect(gameWindow, green, self.rCubeRect1)
-        pygame.draw.rect(gameWindow, yellow, self.rCubeRect2)
-        pygame.draw.rect(gameWindow, green, self.rCubeRect3)
-        pygame.draw.rect(gameWindow, red, self.rCubeRect4)
-        pygame.draw.rect(gameWindow, white, self.rCubeRect5)
-        pygame.draw.rect(gameWindow, blue, self.rCubeRect6)
-        pygame.draw.rect(gameWindow, orange, self.rCubeRect7)
-        pygame.draw.rect(gameWindow, green, self.rCubeRect8)
-        pygame.draw.rect(gameWindow, orange, self.rCubeRect9)
+WIN_WIDTH = 400
+WIN_HEIGHT = 600
 
-myCube = rubiksCube()
+USER_TIMES_HISTORY = []
 
-class TimerState(Enum):
-    READY = 0,
-    WAITING = 1,
-    SOLVING = 2,
-    PENALTY = 3,
-    DNF = 4,
-    STOP = 5,
-    DISPLAYING = 6
+def addTimeToTimesHistory(value):
+    USER_TIMES_HISTORY.append(value)
 
-class Screen:
-    def stringDisplay(self, str, str_size, str_x_pos, str_y_pos, str_colour):
-        font = pygame.font.SysFont("arial", str_size)
-        textForDisplay = font.render(str, True, str_colour)
-        gameWindow.blit(textForDisplay, (str_x_pos, str_y_pos))
+def deleteTimeFromTimesHistory():
+    USER_TIMES_HISTORY.pop(-1)
 
-myScreen = Screen()
+def clearTimesHistory():
+    USER_TIMES_HISTORY.clear()
 
-class EventsHandling:
+def getBestTimeFromTimesHistory():
+    if len(USER_TIMES_HISTORY) > 0:
+        return min(USER_TIMES_HISTORY)
+    else:
+        return -1
+
+def getUpToFiveLastTimesFromTimesHistory():
+    if len(USER_TIMES_HISTORY) == 0:
+        return -1
+    elif len(USER_TIMES_HISTORY) < 6:
+        return USER_TIMES_HISTORY[:]
+    else:
+        return USER_TIMES_HISTORY[-5:]
+
+pygame.init()
+gameWindow = pygame.display.set_mode((WIN_WIDTH, WIN_HEIGHT))
+
+def drawCubeGraphic(xpos, ypos):
+    pygame.draw.rect(gameWindow, GREEN, pygame.Rect(xpos+0, ypos+0, 30, 30))
+    pygame.draw.rect(gameWindow, YELLOW, pygame.Rect(xpos+30, ypos+0, 30, 30))
+    pygame.draw.rect(gameWindow, GREEN, pygame.Rect(xpos+60, ypos+0, 30, 30))
+    pygame.draw.rect(gameWindow, RED, pygame.Rect(xpos+0, ypos+30, 30, 30))
+    pygame.draw.rect(gameWindow, WHITE, pygame.Rect(xpos+30, ypos+30, 30, 30))
+    pygame.draw.rect(gameWindow, BLUE, pygame.Rect(xpos+60, ypos+30, 30, 30))
+    pygame.draw.rect(gameWindow, ORANGE, pygame.Rect(xpos+0, ypos+60, 30, 30))
+    pygame.draw.rect(gameWindow, GREEN, pygame.Rect(xpos+30, ypos+60, 30, 30))
+    pygame.draw.rect(gameWindow, ORANGE, pygame.Rect(xpos+60, ypos+60, 30, 30))
+
+def stringDisplay(str, str_size, str_x_pos, str_y_pos, str_colour):
+    font = pygame.font.SysFont("arial", str_size)
+    textForDisplay = font.render(str, True, str_colour)
+    gameWindow.blit(textForDisplay, (str_x_pos, str_y_pos))
+
+def timeToString(time):
+    minutes = int(time / 60)
+    seconds = int(time) % 60
+    miliseconds = int((time % 1) * 1000)
+    if miliseconds < 100:
+        strTime = str(minutes) + ":" + str(seconds) + ".0" + str(miliseconds)
+    else:
+        strTime = str(minutes) + ":" + str(seconds) + "." + str(miliseconds)
+
+    return strTime
+
+
+pygame.init()
+pygame.font.init()
+pygame.display.set_caption("Rubik's Cube Timer")
+textForUser = " "
+textForUser_xpos = 0
+textForUser_ypos = 0
+timeField = "0:0.000"
+timeField_xpos = 115
+timeField_ypos = 400
+gameIsRunning = True
+myStoper = Stoper.Stoper()
+
+plus2sec_flag = False
+dnf_flag = False
+
+state = "IDLE"
+
+while gameIsRunning:
     spaceDown = False
     spaceUp = False
+    #spacePressed = pygame.key.get_pressed()[pygame.K_SPACE]
     escapeDown = False
-    escapeUp = False
-    programQuite = False
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                spaceDown = True
+            if event.key == pygame.K_ESCAPE:
+                gameIsRunning = False
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_SPACE:
+                spaceUp = True
 
-    def eventsHandling(self):
-        self.spaceUp = False
-        self.spaceDown = False
-        self.programQuite = False
-        self.escapeUp = False
-        self.escapeDown = False
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
-                    self.spaceDown = True
-                elif event.key == pygame.K_ESCAPE:
-                    self.escapeDown = True
-            elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_SPACE:
-                    self.spaceUp = True
-            elif event.type == pygame.QUIT:
-                self.programQuite = True
+        elif event.type == pygame.QUIT:
+            gameIsRunning = False
 
-myEvents = EventsHandling()
+    if state == "IDLE":
+        if spaceUp:
+            state = "INSPECTION"
+            myStoper.start()
 
-class Timer:
-    startTime = 0.0
-    mTime = 0.0
-    mTime_str = " "
-    def timer(self, reset=0):
-        if reset == 1:
-            self.startTime = time.time()
-        self.mTime = time.time() - self.startTime
-        minutes = int(self.mTime/60)
-        seconds = int(self.mTime) % 60
-        miliseconds = int((self.mTime % 1)*1000)
-        if miliseconds < 100:
-            self.mTime_str = str(minutes) + ":" + str(seconds) + ".0" + str(miliseconds)
         else:
-            self.mTime_str = str(minutes) + ":" + str(seconds) + "." + str(miliseconds)
-
-myTimer = Timer()
-
-white = (255, 255, 255)
-yellow = (255, 255, 0)
-green = (0, 255, 0)
-red = (255, 0, 0)
-blue = (0, 0, 255)
-orange = (255, 130, 0)
-background_colour = (0, 0, 100)
-
-textForUser = " "
-timeField = "0:0.000"
-
-gameWindow = pygame.display.set_mode((400, 600))
-currentState = TimerState.READY
-textXPOS = 0   #przenieść do myScreen
-textYPOS = 0   #przenieść do myScreen
-
-class ProgramLogic:
-    GameIsRunning = False
-
-    def programQuite(self):
-        self.GameIsRunning = True
-        if myEvents.programQuite or myEvents.escapeDown:
-            self.GameIsRunning = False
-
-myProgramLogic = ProgramLogic()
-
-def init():
-    myCube.rCubeRect1 = pygame.Rect(150, 10, 30, 30)
-    myCube.rCubeRect2 = pygame.Rect(185, 10, 30, 30)
-    myCube.rCubeRect3 = pygame.Rect(220, 10, 30, 30)
-    myCube.rCubeRect4 = pygame.Rect(150, 45, 30, 30)
-    myCube.rCubeRect5 = pygame.Rect(185, 45, 30, 30)
-    myCube.rCubeRect6 = pygame.Rect(220, 45, 30, 30)
-    myCube.rCubeRect7 = pygame.Rect(150, 80, 30, 30)
-    myCube.rCubeRect8 = pygame.Rect(185, 80, 30, 30)
-    myCube.rCubeRect9 = pygame.Rect(220, 80, 30, 30)
-
-    myProgramLogic.GameIsRunning = True
-    pygame.init()
-    pygame.font.init()
-    pygame.display.set_caption("Rubik's Cube Timer")
-
-    myEvents.spaceDown = False
-    myEvents.spaceUp = False
-
-
-init()
-myTimer.timer(1)
-while myProgramLogic.GameIsRunning:
-    gameWindow.fill(background_colour)
-    myTimer.timer()
-    myCube.rCubeDrawing()
-    myEvents.eventsHandling()
-    if currentState == TimerState.READY:
-        if myEvents.spaceUp:
-            currentState = TimerState.WAITING
-            myTimer.timer(1)
-        else:
-            currentState = TimerState.READY
+            state = "IDLE"
             textForUser = "Ready?"
-            textXPOS = 130
-            textYPOS = 130
-            timeField = " "
+            textForUser_xpos = 130
+            textForUser_ypos = 130
 
-    elif currentState == TimerState.WAITING:
+    elif state == "INSPECTION":
         textForUser = "You have 15 sec"
-        textXPOS = 54
-        textYPOS = 130
-        if myEvents.spaceUp:
-            currentState = TimerState.SOLVING
-            myTimer.timer(1)
-        elif not myEvents.spaceUp and myTimer.mTime < 15:
-            currentState = TimerState.WAITING
-            timeField = "    " + str(15 - int(myTimer.mTime))
+        textForUser_xpos = 54
+        textForUser_ypos = 130
+        if spaceUp:
+            state = "SOLVING"
+            myStoper.reset()
         else:
-            currentState = TimerState.PENALTY
-            myTimer.timer(1)
-
-    elif currentState == TimerState.SOLVING:
-        textForUser = " "
-        textXPOS = 54
-        textYPOS = 130
-        if myEvents.spaceDown:
-            currentState = TimerState.STOP
-        else:
-            currentState = TimerState.SOLVING
-            timeField = myTimer.mTime_str
-
-    elif currentState == TimerState.PENALTY:
-        if myEvents.spaceUp:
-            currentState = TimerState.SOLVING
-            myTimer.timer(1)
-        elif not myEvents.spaceUp:
-            if myTimer.mTime <= 2:
-                currentState = TimerState.PENALTY
+            time = myStoper.read()
+            if time < 15.0:
+                state = "INSPECTION"
+                timeField = "    " + str(15 - int(time))
+            elif time < 17.0:
+                state = "INSPECTION"
                 timeField = "+2 sec"
-            elif myTimer.mTime > 2:
-                currentState = TimerState.DNF
+                plus2sec_flag = True
+            else:
+                state = "INSPECTION"
+                timeField = "  DNF"
+                dnf_flag = True
 
-    elif currentState == TimerState.DNF:
-        if myEvents.spaceUp:
-            currentState = TimerState.READY
+    elif state =="SOLVING":
+        textForUser = " "
+        textForUser_xpos = 54
+        textForUser_ypos = 130
+        solveTime = myStoper.read()
+        timeField = timeToString(solveTime)
+        if spaceUp:
+            state = "IDLE"
+            if plus2sec_flag:
+                solveTime += 2.0
+                plus2sec_flag = False
+            elif dnf_flag:
+                solveTime = 9999.0
+                dnf_flag = False
+            USER_TIMES_HISTORY.append(solveTime)
         else:
-            currentState = TimerState.DNF
-            timeField = "  DNF"
+            state = "SOLVING"
 
-    elif currentState == TimerState.STOP:
-        textForUser = "Your time:"
-        textXPOS = 110
-        textYPOS = 130
-        if myEvents.spaceUp:
-            currentState = TimerState.DISPLAYING
-    else:
-        if myEvents.spaceUp:
-            currentState = TimerState.READY
-            timeField = "0:0.000"
-            spaceDown = 0
 
-    myScreen.stringDisplay(textForUser, 40, textXPOS, textYPOS, white)
-    myScreen.stringDisplay(timeField, 50, 115, 400, white)
+    gameWindow.fill(BACKGROUND_COLOUR)
+    drawCubeGraphic(155, 10)
+    stringDisplay(textForUser, 40, textForUser_xpos, textForUser_ypos, WHITE)
+    stringDisplay(timeField, 50, timeField_xpos, timeField_ypos, WHITE)
+    bestTime = getBestTimeFromTimesHistory()
+    stringDisplay("Best time:", 20, 280, 470, WHITE)
+    if bestTime != -1:
+        stringDisplay(timeToString(bestTime), 20, 280, 490, WHITE)
+    stringDisplay("Last 5 times:", 20, 20, 470, WHITE)
+    times = getUpToFiveLastTimesFromTimesHistory()
+    if times != -1:
+        ypos = 490
+        for t in times:
+            stringDisplay(timeToString(t), 20, 20, ypos, WHITE)
+            ypos += 20
     pygame.display.update()
-    myProgramLogic.programQuite()
